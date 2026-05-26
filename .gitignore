@@ -1,0 +1,65 @@
+# Python / Virtual Environments
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*
+
+# Backend Data & Vector Databases
+chroma_db/
+**/chroma_db/
+*.sqlite3
+*.db
+backend/chroma_db/
+
+# PDFs & Raw Data Documents (Excludes all traffic rule PDFs)
+*.pdf
+**/*.pdf
+backend/app/data/*.pdf
+backend/app/data/**/*.pdf
+
+# Node / React Native Dependencies
+node_modules/
+**/node_modules/
+
+# Expo & Frontend Build Output
+.expo/
+**/.expo/
+dist/
+web-build/
+expo-env.d.ts
+ios/
+android/
+frontend/ios/
+frontend/android/
+frontend/.expo/
+frontend/web-build/
+.kotlin/
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# OS System Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Log Files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.metro-health-check*
