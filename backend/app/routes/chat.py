@@ -12,6 +12,7 @@ router = APIRouter()
 class ChatRequest(BaseModel):
     query: str
     conversation_id: Optional[str] = None
+    state: Optional[str] = None
 
 class ChatResponse(BaseModel):
     query: str
@@ -35,7 +36,7 @@ async def chat(request: ChatRequest):
         
     logger.info(f"Processing chat request for session '{conversation_id}'")
     
-    response_text, sources = await ask_chatbot(query, conversation_id)
+    response_text, sources = await ask_chatbot(query, conversation_id, request.state)
     
     duration = time.time() - start_time
     logger.info(f"Finished processing query in {duration:.2f}s for session '{conversation_id}'")

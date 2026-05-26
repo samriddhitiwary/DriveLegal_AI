@@ -1,5 +1,5 @@
 import os
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from langchain_google_genai import ChatGoogleGenerativeAI
 from app.config.settings import settings
 from app.utils.logger import logger
@@ -63,9 +63,9 @@ SYSTEM_PROMPT = """You are DriveLegal AI, a professional traffic law assistant. 
 
 Guidelines:
 1. Base your answer STRICTLY on the retrieved context below. Do NOT assume, extrapolate, or use outside knowledge.
-2. If the context does not contain the answer, state clearly: "I'm sorry, but I couldn't find information about that in the traffic rules documentation."
+2. If the context does not contain the direct answer to the user's question, you must state ONLY: "I'm sorry, but I couldn't find information about that in the traffic rules documentation." Do NOT attempt to provide information about related topics or list other penalties/sections.
 3. Keep your answers concise, structured (using bullet points if appropriate), and easy for a layman to understand, while maintaining legal accuracy.
-4. If applicable, cite the specific source PDF and page number mentioned in the context.
+4. Do NOT cite any source PDF names, page numbers, or references. Never mention source file paths, names, or metadata. Provide a clean, direct answer to the user's question without any citation markers.
 5. Do NOT hallucinate fine amounts or rules.
 
 Retrieved Context:
@@ -78,7 +78,7 @@ User Question: {question}
 
 Helpful Answer:"""
 
-async def ask_chatbot(query: str, conversation_id: str) -> Tuple[str, List[str]]:
+async def ask_chatbot(query: str, conversation_id: str, state: Optional[str] = None) -> Tuple[str, List[str]]:
     """
     Processes the user query within a conversational context, retrieves relevant PDFs chunks,
     queries the Gemini LLM, updates chat memory, and returns the answer with source citations.
@@ -114,9 +114,9 @@ async def ask_chatbot(query: str, conversation_id: str) -> Tuple[str, List[str]]
                 logger.warning(f"Failed to rephrase follow-up query: {rephrase_err}. Using original query.")
                 search_query = query
                 
-        # 3. Retrieve relevant documents using search query
-        docs, sources = retrieve_relevant_docs(search_query)
-        context = "\n\n".join([f"--- Source: {doc.metadata.get('source')} ---\n{doc.page_content}" for doc in docs])
+        # 3. Retrieve relevant documents using search query and location state
+        docs, sources = retrieve_relevant_docs(search_query, state=state)
+        context = "\n\n".join([doc.page_content for doc in docs])
         
         # 4. Formulate final RAG prompt and call Gemini
         final_prompt = SYSTEM_PROMPT.format(

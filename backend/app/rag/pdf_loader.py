@@ -1,6 +1,7 @@
 import os
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
 from app.config.settings import settings
 from app.utils.logger import logger
 
@@ -19,11 +20,8 @@ def load_pdfs():
         logger.error(f"Error accessing data directory {data_dir}: {e}")
         return []
 
+    # 1. Load PDF files
     pdf_files = [f for f in files if f.endswith(".pdf")]
-    if not pdf_files:
-        logger.warning(f"No PDF files found in {data_dir}")
-        return []
-
     for file in pdf_files:
         pdf_path = os.path.join(data_dir, file)
         logger.info(f"Loading PDF: {file}")
@@ -33,8 +31,21 @@ def load_pdfs():
         except Exception as e:
             logger.error(f"Error loading PDF {file}: {e}")
 
+    # 2. Load text and markdown files
+    text_files = [f for f in files if f.endswith(".md") or f.endswith(".txt")]
+    for file in text_files:
+        file_path = os.path.join(data_dir, file)
+        logger.info(f"Loading text/markdown file: {file}")
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            # We use page=0 as a default metadata field
+            documents.append(Document(page_content=content, metadata={"source": file_path, "page": 0}))
+        except Exception as e:
+            logger.error(f"Error loading text/markdown file {file}: {e}")
+
     if not documents:
-        logger.warning("No document pages loaded from PDFs.")
+        logger.warning("No document pages loaded from PDFs or text files.")
         return []
 
     splitter = RecursiveCharacterTextSplitter(
@@ -43,5 +54,5 @@ def load_pdfs():
     )
 
     split_docs = splitter.split_documents(documents)
-    logger.info(f"Created {len(split_docs)} chunks from {len(pdf_files)} PDFs")
+    logger.info(f"Created {len(split_docs)} chunks from {len(pdf_files)} PDFs and {len(text_files)} text files")
     return split_docs
