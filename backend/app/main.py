@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.routes.chat import router as chat_router
+from app.routes.challan import router as challan_router
 from app.utils.logger import logger
 
 app = FastAPI(
@@ -29,6 +30,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 app.include_router(chat_router)
+app.include_router(challan_router)
 
 @app.get("/")
 async def root():

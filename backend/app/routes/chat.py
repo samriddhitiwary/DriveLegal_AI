@@ -5,6 +5,7 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.rag.chatbot import ask_chatbot
+from app.schemas.challan_schema import ChallanResponse
 from app.utils.logger import logger
 
 router = APIRouter()
@@ -20,6 +21,7 @@ class ChatResponse(BaseModel):
     sources: List[str]
     conversation_id: str
     timestamp: str
+    challan_calculation: Optional[ChallanResponse] = None
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
@@ -36,7 +38,7 @@ async def chat(request: ChatRequest):
         
     logger.info(f"Processing chat request for session '{conversation_id}'")
     
-    response_text, sources = await ask_chatbot(query, conversation_id, request.state)
+    response_text, sources, challan_calc = await ask_chatbot(query, conversation_id, request.state)
     
     duration = time.time() - start_time
     logger.info(f"Finished processing query in {duration:.2f}s for session '{conversation_id}'")
@@ -46,5 +48,6 @@ async def chat(request: ChatRequest):
         response=response_text,
         sources=sources,
         conversation_id=conversation_id,
-        timestamp=datetime.now(timezone.utc).isoformat()
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        challan_calculation=challan_calc
     )

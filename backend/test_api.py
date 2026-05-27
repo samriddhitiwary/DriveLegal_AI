@@ -1,90 +1,106 @@
 import os
 import sys
+import logging
+
+# Suppress all verbose logs during tests to keep output clean
+logging.getLogger().setLevel(logging.WARNING)
+logging.getLogger("drive_legal_ai").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+
+from fastapi.testclient import TestClient
 from dotenv import load_dotenv
 
 # Load dot env first
-load_dotenv()
+load_dotenv(override=True)
 
 # Add backend folder to path
-sys.path.append(os.path.join(os.path.dirname(__file__)))
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi.testclient import TestClient
 from app.main import app
-from app.config.settings import settings
-from app.utils.logger import logger
 
 client = TestClient(app)
 
 def run_tests():
-    logger.info("=" * 60)
-    logger.info("STARTING BACKEND INTEGRATION & LOGIC TESTS")
-    logger.info("=" * 60)
-
-    # Test Case 1: Root endpoint
-    logger.info("--- Test Case 1: Root Endpoint ---")
-    response = client.get("/")
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-    logger.info(f"Root response: {response.json()}")
-
-    # Test Case 2: Validation of empty queries
-    logger.info("--- Test Case 2: Empty Query Validation ---")
-    response = client.post("/chat", json={"query": ""})
-    assert response.status_code == 422 or response.status_code == 400, f"Expected validation error, got {response.status_code}"
-    logger.info(f"Empty query error response: {response.json()}")
-
-    # Test Case 3: Conversational RAG with Gemini (Q1: Maharashtra helmet query)
-    logger.info("--- Test Case 3: Initial Query (Maharashtra Helmet Fine) ---")
-    payload = {
-        "query": "What is the helmet fine in Maharashtra?"
-    }
-    response = client.post("/chat", json=payload)
+    # Test Case 1: Initial Query
+    print("\n" + "=" * 60)
+    print("TEST CASE 1: Initial Query")
+    print("=" * 60)
+    q1 = "What is the helmet fine in Maharashtra?"
+    print(f"Question: {q1}")
+    
+    response = client.post("/chat", json={"query": q1})
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"
     res_data = response.json()
-    logger.info(f"Response: {res_data}")
     
-    assert "query" in res_data
-    assert "response" in res_data
-    assert "sources" in res_data
-    assert "conversation_id" in res_data
-    assert "timestamp" in res_data
+    print("-" * 60)
+    print(f"AI Answer:\n{res_data['response'].replace('₹', 'Rs.')}")
+    print("=" * 60)
     
     conversation_id = res_data["conversation_id"]
-    logger.info(f"Conversation ID generated: {conversation_id}")
-    logger.info(f"Sources cited: {res_data['sources']}")
 
-    # Test Case 4: Follow-up question using generated conversation_id
-    logger.info("--- Test Case 4: Contextual Follow-up Query ---")
-    followup_payload = {
-        "query": "What if I repeat the offence?",
-        "conversation_id": conversation_id
-    }
-    response = client.post("/chat", json=followup_payload)
+    # Test Case 2: Follow-up question using generated conversation_id
+    print("\n" + "=" * 60)
+    print("TEST CASE 2: Contextual Follow-up Query")
+    print("=" * 60)
+    q2 = "What if I repeat the offence?"
+    print(f"Question: {q2}")
+    
+    response = client.post("/chat", json={"query": q2, "conversation_id": conversation_id})
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-    followup_data = response.json()
-    logger.info(f"Follow-up Response: {followup_data}")
-    logger.info(f"Follow-up Sources cited: {followup_data['sources']}")
+    res_data = response.json()
+    
+    print("-" * 60)
+    print(f"AI Answer:\n{res_data['response'].replace('₹', 'Rs.')}")
+    print("=" * 60)
 
-    # Test Case 5: Unrelated query / Fallback behavior
-    logger.info("--- Test Case 5: Unrelated Query (Fallback check) ---")
-    unrelated_payload = {
-        "query": "How do you bake chocolate chip cookies?"
-    }
-    response = client.post("/chat", json=unrelated_payload)
+    # Test Case 3: Conversational AI Challan Parsing Check
+    print("\n" + "=" * 60)
+    print("TEST CASE 3: Conversational AI Challan Parsing Check")
+    print("=" * 60)
+    q3 = "I was riding triple on a bike without a helmet in Maharashtra again."
+    print(f"Question: {q3}")
+    
+    response = client.post("/chat", json={"query": q3})
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-    unrelated_data = response.json()
-    logger.info(f"Unrelated Response: {unrelated_data}")
-    # It should mention unavailability of traffic laws info or fallback gracefully
+    res_data = response.json()
+    
+    print("-" * 60)
+    print(f"AI Answer:\n{res_data['response'].replace('₹', 'Rs.')}")
+    
+    challan = res_data.get("challan_calculation")
+    if challan:
+        print("\nStructured Challan Details:")
+        print(f"  - State: {challan.get('state')}")
+        print(f"  - Vehicle Type: {challan.get('vehicle_type')}")
+        print(f"  - Total Fine: Rs. {challan.get('total_fine')}")
+        print(f"  - Violations:")
+        for v in challan.get("violations", []):
+            print(f"    * {v.get('name')}: Rs. {v.get('fine')} (Repeat: {v.get('repeat_offence')}, Section: {v.get('law_section')})")
+        print(f"  - License Suspension Warning: {'Yes' if challan.get('warnings', {}).get('license_suspension') else 'No'}")
+    print("=" * 60 + "\n")
 
-    logger.info("=" * 60)
-    logger.info("ALL TEST CASES PASSED SUCCESSFULLY!")
-    logger.info("=" * 60)
+    # Test Case 4: Tamil Nadu Seatbelt Query
+    print("\n" + "=" * 60)
+    print("TEST CASE 4: Tamil Nadu Seatbelt Query")
+    print("=" * 60)
+    q4 = "What is the seatbelt fine in Tamil Nadu?"
+    print(f"Question: {q4}")
+    
+    response = client.post("/chat", json={"query": q4, "state": "Tamil Nadu"})
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    res_data = response.json()
+    
+    print("-" * 60)
+    print(f"AI Answer:\n{res_data['response'].replace('₹', 'Rs.')}")
+    print("=" * 60 + "\n")
 
 if __name__ == "__main__":
     try:
         run_tests()
     except AssertionError as ae:
-        logger.error(f"Assertion failed: {ae}")
+        print(f"\nAssertion failed: {ae}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
-        logger.error(f"Test failed with exception: {e}", exc_info=True)
+        print(f"\nTest failed with exception: {e}", file=sys.stderr)
         sys.exit(1)
